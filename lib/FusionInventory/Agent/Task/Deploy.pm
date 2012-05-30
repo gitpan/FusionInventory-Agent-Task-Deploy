@@ -19,7 +19,7 @@ use FusionInventory::Agent::Task::Deploy::Datastore;
 use FusionInventory::Agent::Task::Deploy::File;
 use FusionInventory::Agent::Task::Deploy::Job;
 
-our $VERSION = '2.0.0';
+our $VERSION = '2.0.2';
 
 sub isEnabled {
     my ($self) = @_;
@@ -353,7 +353,11 @@ sub processRemote {
             if ( $params && (ref( $params->{checks} ) eq 'ARRAY') ) {
                 foreach my $checknum ( 0 .. @{ $params->{checks} } ) {
                     next unless $job->{checks}[$checknum];
-                    my $checkStatus = FusionInventory::Agent::Task::Deploy::CheckProcessor::process( $params->{checks}[$checknum] );
+                    my $checkStatus = FusionInventory::Agent::Task::Deploy::CheckProcessor->process(
+                        check => $params->{checks}[$checknum],
+                        logger => $self->{logger}
+
+                    );
                     if ( $checkStatus ne 'ok') {
 
                         $self->{client}->send(
@@ -488,7 +492,7 @@ __END__
 
 =head1 NAME
 
-FusionInventory::Agent::Task::Deploy - Software deployment support for FusionInvnetory Agent
+FusionInventory::Agent::Task::Deploy - Software deployment support for FusionInventory Agent
 
 =head1 DESCRIPTION
 

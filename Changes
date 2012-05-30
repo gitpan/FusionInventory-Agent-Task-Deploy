@@ -1,3 +1,20 @@
+2.0.2  Wed, 30 May 2012 17:38:18 +0200
+
+* Win32: properly support non ASCII characters
+* use Win32::Job on Windows to get the full return code
+* Win32: better Registry key check
+* refresh the test-suite
+* CheckProcessor: ensure a code is always returned
+
+2.0.1  Thu, 26 Apr 2012 20:55:58 +0200
+
+* Use 7z if avalaible to extract the archives
+* fix a segfault on Windows with registry key value check (#1621)
+* P2P: fix the IP range computation on Windows
+* fix a typo in the package description (#1592),
+* fix some warnings in the test-suite (#1591) and thus some hidden
+  regression in code not used so far
+
 2.0.0  Sun, 08 Apr 2012 21:05:59 +0200
 
 9543480 increase end user log verbosity

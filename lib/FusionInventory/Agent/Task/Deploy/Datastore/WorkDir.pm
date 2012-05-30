@@ -3,10 +3,12 @@ package FusionInventory::Agent::Task::Deploy::Datastore::WorkDir;
 use strict;
 use warnings;
 
-use Archive::Extract;
 use Compress::Zlib;
 use English qw(-no_match_vars);
 use File::Path qw(mkpath);
+use UNIVERSAL::require;
+use FusionInventory::Agent::Tools;
+use Encode;
 
 sub new {
     my ($class, %params) = @_;
@@ -40,7 +42,25 @@ sub prepare {
     my $logger = $self->{logger};
 
     foreach my $file (@{$self->{files}}) {
-        my $finalFilePath = $self->{path}.'/'.$file->{name};
+        $file->{name_local} = $file->{name};
+
+        if ($OSNAME eq 'MSWin32') {
+            FusionInventory::Agent::Tools::Win32->require;
+            my $localCodepage = FusionInventory::Agent::Tools::Win32::getLocalCodepage();
+            if (Encode::is_utf8($file->{name})) {
+                $file->{name_local} = encode($localCodepage, $file->{name});
+            }
+        }
+
+        # If the file will be extracted, we simplify its name to avoid problem during
+        # the extraction process
+        if ($file->{uncompress}) {
+            my $shortsha512 = substr($file->{sha512}, 0, 6);
+            $file->{name_local} =~ s/.*\.(tar\.gz|tar|gz|7z|bz2)/$shortsha512.$1/i
+        }
+
+
+        my $finalFilePath = $self->{path}.'/'.$file->{name_local};
 
         my $fh;
         if (!open($fh, '>', $finalFilePath)) {
@@ -78,18 +98,38 @@ sub prepare {
 
 
     foreach my $file (@{$self->{files}}) {
-        my $finalFilePath = $self->{path}.'/'.$file->{name};
+        my $finalFilePath = $self->{path}.'/'.$file->{name_local};
 
-        $Archive::Extract::DEBUG=1;
         if ($file->{uncompress}) {
-            my $ae = Archive::Extract->new( archive => $finalFilePath );
-            if (!$ae) {
-                $logger->info("Failed to create Archive::Extract object");
-            } elsif (!$ae->extract( to => $self->{path} )) {
-                $logger->debug("Failed to extract '$finalFilePath'");
+            if(canRun('7z')) {
+                my $tarball;
+                foreach (`7z x -o\"$self->{path}\" \"$finalFilePath\"`) {
+                    chomp;
+                    $logger->debug2("7z: $_");
+                    if (/Extracting\s+(.*\.tar)$/) {
+                        $tarball = $1;
+                    }
+                }
+                if ($tarball && ($finalFilePath =~ /tgz$/i || $finalFilePath =~ /tar\.(gz|xz|bz2)$/i)) {
+                    foreach (`7z x -o\"$self->{path}\" \"$self->{path}/$tarball\"`) {
+                       chomp;
+                        $logger->debug2("7z: $_");
+                    }
+                    unlink($self->{path}.'/'.$tarball);
+                }
+            } else {
+                Archive::Extract->require;
+                $Archive::Extract::DEBUG=1;
+                my $ae = Archive::Extract->new( archive => $finalFilePath );
+                if (!$ae) {
+                    $logger->info("Failed to create Archive::Extract object");
+                } elsif (!$ae->extract( to => $self->{path} )) {
+                    $logger->debug("Failed to extract '$finalFilePath'");
+                }
+# We ignore failure here because one my have activated the
+# extract flag on common file and this should be harmless
             }
-            # We ignore failure here because one my have activated the
-            # extract flag on common file and this should be harmless
+            unlink($finalFilePath);
         }
     }
 
