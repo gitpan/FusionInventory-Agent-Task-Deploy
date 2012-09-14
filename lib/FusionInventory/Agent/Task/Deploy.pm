@@ -19,7 +19,7 @@ use FusionInventory::Agent::Task::Deploy::Datastore;
 use FusionInventory::Agent::Task::Deploy::File;
 use FusionInventory::Agent::Task::Deploy::Job;
 
-our $VERSION = '2.0.2';
+our $VERSION = '2.0.3';
 
 sub isEnabled {
     my ($self) = @_;
@@ -127,7 +127,7 @@ sub processRemote {
             foreach my $uuid ( @{ $_->{associatedFiles} } ) {
                 if ( !$files->{$uuid} ) {
                     die "unknow file: `" . $uuid
-                      . "'. Not found in YSON answer!";
+                      . "'. Not found in JSON answer!";
                 }
                 push @$associatedFiles, $files->{$uuid};
             }
@@ -211,8 +211,11 @@ sub processRemote {
             }
         );
 
+        my $retry = 5;
         my $workdir = $datastore->createWorkDir( $job->{uuid} );
-        foreach my $file ( @{ $job->{associatedFiles} } ) {
+        FETCHFILE: foreach my $file ( @{ $job->{associatedFiles} } ) {
+
+            # File exists, no need to download
             if ( $file->filePartsExists() ) {
                 $self->{client}->send(
                     url  => $remoteUrl,
@@ -231,6 +234,8 @@ sub processRemote {
                 $workdir->addFile($file);
                 next;
             }
+
+            # File doesn't exist, lets try or retry a download
             $self->{client}->send(
                 url  => $remoteUrl,
                 args => {
@@ -245,7 +250,11 @@ sub processRemote {
             );
 
             $file->download();
-            if ( $file->filePartsExists() ) {
+
+            # Are all the fileparts here?
+            my $downloadIsOK = $file->filePartsExists();
+
+            if ( $downloadIsOK ) {
 
                 $self->{client}->send(
                     url  => $remoteUrl,
@@ -262,25 +271,51 @@ sub processRemote {
                 );
 
                 $workdir->addFile($file);
+                next;
             }
-            else {
 
-                $self->{client}->send(
-                    url  => $remoteUrl,
-                    args => {
-                        action      => "setStatus",
-                        machineid   => $self->{deviceid},
-                        part        => 'file',
-                        uuid        => $job->{uuid},
-                        sha512      => $file->{sha512},
-                        currentStep => 'downloading',
-                        status      => 'ko',
-                        msg         => $file->{name}.' download failed'
-                    }
-                );
-                next JOB;
+            # Retry the download 5 times in a row and then give up
+            if ( !$downloadIsOK ) {
+
+                if ($retry--) { # Retry
+# OK, retry!
+                    $self->{client}->send(
+                        url  => $remoteUrl,
+                        args => {
+                            action      => "setStatus",
+                            machineid   => $self->{deviceid},
+                            part        => 'file',
+                            uuid        => $job->{uuid},
+                            sha512      => $file->{sha512},
+                            currentStep => 'downloading',
+                            msg         => 'retrying '.$file->{name}
+                        }
+                    );
+
+                    redo FETCHFILE;
+                } else { # Give up...
+
+                    $self->{client}->send(
+                        url  => $remoteUrl,
+                        args => {
+                            action      => "setStatus",
+                            machineid   => $self->{deviceid},
+                            part        => 'file',
+                            uuid        => $job->{uuid},
+                            sha512      => $file->{sha512},
+                            currentStep => 'downloading',
+                            status      => 'ko',
+                            msg         => $file->{name}.' download failed'
+                        }
+                    );
+
+                    next JOB;
+                }
             }
+
         }
+
+
         $self->{client}->send(
             url  => $remoteUrl,
             args => {

@@ -32,8 +32,6 @@ sub addFile {
 
     push @{$self->{files}}, $file;
 
-
-
 }
 
 sub prepare {
@@ -41,6 +39,7 @@ sub prepare {
 
     my $logger = $self->{logger};
 
+    # Rebuild the complet file from the filepart
     foreach my $file (@{$self->{files}}) {
         $file->{name_local} = $file->{name};
 
@@ -56,7 +55,10 @@ sub prepare {
         # the extraction process
         if ($file->{uncompress}) {
             my $shortsha512 = substr($file->{sha512}, 0, 6);
-            $file->{name_local} =~ s/.*\.(tar\.gz|tar|gz|7z|bz2)/$shortsha512.$1/i
+            $file->{name_local} =~ s/.*\.(tar\.gz)/$shortsha512.$1/i;
+            if (!$1) {
+                $file->{name_local} =~ s/.*\.(tar|gz|7z|bz2)/$shortsha512.$1/i
+            }
         }
 
 
@@ -96,7 +98,7 @@ sub prepare {
 
     }
 
-
+    # Now uncompress
     foreach my $file (@{$self->{files}}) {
         my $finalFilePath = $self->{path}.'/'.$file->{name_local};
 
