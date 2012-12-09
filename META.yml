@@ -25,11 +25,10 @@ requires:
   Archive::Extract: 0
   Digest::SHA: 0
   File::Copy::Recursive: 0
-  FusionInventory::Agent: 2.2.1
   JSON: 0
   UNIVERSAL::require: 0
   URI::Escape: 0
   perl: 5.8.0
 resources:
   license: http://opensource.org/licenses/gpl-license.php
-version: 2.0.3
+version: 2.0.4

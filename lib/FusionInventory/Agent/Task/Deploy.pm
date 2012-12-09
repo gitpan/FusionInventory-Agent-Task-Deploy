@@ -19,7 +19,7 @@ use FusionInventory::Agent::Task::Deploy::Datastore;
 use FusionInventory::Agent::Task::Deploy::File;
 use FusionInventory::Agent::Task::Deploy::Job;
 
-our $VERSION = '2.0.3';
+our $VERSION = '2.0.4';
 
 sub isEnabled {
     my ($self) = @_;
@@ -420,7 +420,7 @@ sub processRemote {
             eval { $ret = $actionProcessor->process($actionName, $params, $self->{logger}); };
             $ret->{msg} = [] unless $ret->{msg};
             push @{$ret->{msg}}, $@ if $@;
-            if ( !$ret->{status} || $self->{config}{debug} ) {
+            if ( !$ret->{status} ) {
                 $self->{client}->send(
                     url  => $remoteUrl,
                     args => {
@@ -431,9 +431,7 @@ sub processRemote {
                         actionnum => $actionnum,
                     }
                 );
-            }
 
-            if ( !$ret->{status} ) {
                 $self->{client}->send(
                     url  => $remoteUrl,
                     args => {

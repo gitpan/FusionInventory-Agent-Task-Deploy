@@ -24,9 +24,8 @@ requires:
   Archive::Extract: 0
   Digest::SHA: 0
   File::Copy::Recursive: 0
-  FusionInventory::Agent: v2.2.1
   JSON: 0
   UNIVERSAL::require: 0
   URI::Escape: 0
   perl: 5.008
-version: v2.0.3
+version: v2.0.4
